@@ -1,14 +1,10 @@
 import torch
 import numpy as np
-from logging import Logger
-import logging
 from torch import optim
 from torch.utils.data import DataLoader
 from exceptions import NanException, EarlyStoppingException
 from torch.nn.utils import clip_grad_norm_
 from torch import nn
-
-logger = Logger()
 
 
 class SubsetRandomSampler:
@@ -72,21 +68,21 @@ class ForwardTrainer:
             np.random.seed(seed)
             torch.manual_seed(seed)
 
-        logger.debug("Initialising training data")
+        print("Initialising training data")
         train_loader, val_loader = self.make_dataloader(
             dataset, validation_split, batch_size
         )
 
-        logger.debug("Setting up optimizer")
+        print("Setting up optimizer")
         optimizer_kwargs = {} if optimizer_kwargs is None else optimizer_kwargs
         if parameters is None:
             parameters = list(self.model.parameters())
         opt = optimizer(parameters, lr=initial_lr, **optimizer_kwargs)
 
-        logger.debug("Setting up LR scheduler")
+        print("Setting up LR scheduler")
         if epochs < 2:
             scheduler = None
-            logger.info("Deactivating scheduler for only %s epoch", epochs)
+            print("Deactivating scheduler for only %s epoch", epochs)
         scheduler_kwargs = {} if scheduler_kwargs is None else scheduler_kwargs
         sched = None
         epochs_per_scheduler = (
@@ -105,27 +101,27 @@ class ForwardTrainer:
         )
         best_loss, best_model, best_epoch = None, None, None
         if early_stopping and early_stopping_patience is None:
-            logger.debug("Using early stopping with infinite patience")
+            print("Using early stopping with infinite patience")
         elif early_stopping:
-            logger.debug(
+            print(
                 "Using early stopping with patience %s", early_stopping_patience
             )
         else:
-            logger.debug("No early stopping")
+            print("No early stopping")
 
         n_losses = len(loss_labels)
         loss_weights = [1.0] * n_losses if loss_weights is None else loss_weights
 
         n_epochs_verbose = self._set_verbosity(epochs, verbose)
 
-        logger.debug("Beginning main training loop")
+        print("Beginning main training loop")
         losses_train, losses_val = [], []
 
         # Resuming training
         if initial_epoch is None:
             initial_epoch = 0
         else:
-            logger.info("Resuming with epoch %s", initial_epoch + 1)
+            print("Resuming with epoch %s", initial_epoch + 1)
             for _ in range(initial_epoch):
                 sched.step()  # Hacky, but last_epoch doesn't work when not saving the optimizer state
 
@@ -136,11 +132,11 @@ class ForwardTrainer:
 
         # Loop over epochs
         for i_epoch in range(initial_epoch, epochs):
-            logger.debug("Training epoch %s / %s", i_epoch + 1, epochs)
+            print("Training epoch %s / %s", i_epoch + 1, epochs)
 
             # LR schedule
             if sched is not None:
-                logger.debug("Learning rate: %s", sched.get_last_lr())
+                print("Learning rate: %s", sched.get_last_lr())
 
             try:
                 (
@@ -164,7 +160,7 @@ class ForwardTrainer:
                 losses_train.append(loss_train)
                 losses_val.append(loss_val)
             except NanException:
-                logger.info(
+                print(
                     "Ending training during epoch %s because NaNs appeared", i_epoch + 1
                 )
                 raise
@@ -180,7 +176,7 @@ class ForwardTrainer:
                         early_stopping_patience,
                     )
                 except EarlyStoppingException:
-                    logger.info(
+                    print(
                         "Early stopping: ending training after %s epochs", i_epoch + 1
                     )
                     break
@@ -228,7 +224,7 @@ class ForwardTrainer:
                 best_model, losses_val[-1], best_loss, best_epoch
             )
 
-        logger.debug("Training finished")
+        print("Training finished")
 
         return np.array(losses_train), np.array(losses_val)
 
@@ -513,7 +509,7 @@ class ForwardTrainer:
         self.model = self.model.to(self.device, self.dtype)
         self.last_batch = None
 
-        logger.info(
+        print(
             "Training on %s with %s precision",
             "{} GPUS".format(torch.cuda.device_count())
             if self.multi_gpu
@@ -557,9 +553,9 @@ class ForwardTrainer:
             loss_ = currrent_loss
 
         if loss_ is None or best_loss is None:
-            logger.warning("Loss is None, cannot wrap up early stopping")
+            print("Loss is None, cannot wrap up early stopping")
         elif best_loss < loss_:
-            logger.info(
+            print(
                 "Early stopping after epoch %s, with loss %8.5f compared to final loss %8.5f",
                 best_epoch + 1,
                 best_loss,
@@ -567,7 +563,7 @@ class ForwardTrainer:
             )
             self.model.load_state_dict(best_model)
         else:
-            logger.info("Early stopping did not improve performance")
+            print("Early stopping did not improve performance")
 
     @staticmethod
     def report_epoch(
@@ -579,7 +575,7 @@ class ForwardTrainer:
         loss_contributions_val,
         verbose=False,
     ):
-        logging_fn = logger.info if verbose else logger.debug
+        logging_fn = print if verbose else print
 
         def contribution_summary(labels, contributions):
             summary = ""
@@ -627,18 +623,18 @@ class ForwardTrainer:
                 n_nans = torch.sum(torch.isnan(tensor)).item()
                 if fix_until is not None:
                     if n_nans <= fix_until:
-                        logger.debug(
+                        print(
                             "%s contains %s NaNs, setting them to zero", label, n_nans
                         )
                         tensor[torch.isnan(tensor)] = replace
                         return
 
-                logger.warning("%s contains %s NaNs, aborting training!", label, n_nans)
+                print("%s contains %s NaNs, aborting training!", label, n_nans)
                 raise NanException
 
     @staticmethod
     def make_dataloader(dataset, validation_split, batch_size, n_workers=4):
-        logger.debug("Setting up dataloaders with %s workers", n_workers)
+        print("Setting up dataloaders with %s workers", n_workers)
 
         if validation_split is None or validation_split <= 0.0:
             train_loader = DataLoader(
@@ -661,8 +657,8 @@ class ForwardTrainer:
             np.random.shuffle(indices)
             train_idx, valid_idx = indices[split:], indices[:split]
 
-            logger.debug("Training partition indices: %s...", train_idx[:10])
-            logger.debug("Validation partition indices: %s...", valid_idx[:10])
+            print("Training partition indices: %s...", train_idx[:10])
+            print("Validation partition indices: %s...", valid_idx[:10])
 
             train_sampler = SubsetRandomSampler(train_idx)
             val_sampler = SubsetRandomSampler(valid_idx)
@@ -697,7 +693,7 @@ class ForwardTrainer:
         if clip_gradient is not None:
             clip_grad_norm_(parameters, clip_gradient)
             # grad_norm = clip_grad_norm_(parameters, clip_gradient)
-            # logger.debug("  Gradient norm (clipping at %s): %s", clip_gradient, grad_norm)
+            # print("  Gradient norm (clipping at %s): %s", clip_gradient, grad_norm)
         optimizer.step()
 
     @staticmethod

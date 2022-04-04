@@ -12,9 +12,3 @@ class IntractableLikelihoodError(Exception):
 
 class DatasetNotAvailableError(Exception):
     pass
-
-
-class NoMeanException(Exception):
-    """Exception to be thrown when a mean function doesn't exist."""
-
-    pass

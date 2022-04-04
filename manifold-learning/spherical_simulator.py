@@ -1,15 +1,10 @@
-#! /usr/bin/env python
-
 import os
 from urllib import request
 import numpy as np
 from scipy.stats import norm
-import logging
-from exceptions import IntractableLikelihoodError, DatasetNotAvailableError
+from exceptions import DatasetNotAvailableError
 from torch.utils.data import Dataset
 import torch
-
-logger = logging.getLogger(__name__)
 
 
 class NumpyDataset(Dataset):
@@ -153,9 +148,7 @@ class SphericalGaussianSimulator:
             params = np.ones(x.shape[0])
 
         if limit_samplesize is not None:
-            logger.info(
-                "Only using %s of %s available samples", limit_samplesize, x.shape[0]
-            )
+            print("Only using %s of %s available samples", limit_samplesize, x.shape[0])
             x = x[:limit_samplesize]
             params = params[:limit_samplesize]
 
@@ -193,7 +186,7 @@ class SphericalGaussianSimulator:
         for tag, file_id in self.gdrive_file_ids.items():
             filename = "{}/{}.npy".format(dataset_dir, tag)
             if not os.path.isfile(filename):
-                logger.info("Downloading {}.npy".format(tag))
+                print("Downloading {}.npy".format(tag))
                 download_file_from_google_drive(file_id, filename)
 
     def is_image(self):
